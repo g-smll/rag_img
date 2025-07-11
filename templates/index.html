@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF文档问答系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>PDF文档问答系统</h1>
+            <p>上传PDF文档并提问，AI将基于文档内容回答您的问题</p>
+        </header>
+
+        <main>
+            <section class="upload-section">
+                <h2>上传文档</h2>
+                <div class="upload-area" id="dropArea">
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <input type="file" id="fileInput" name="file" accept=".pdf" hidden>
+                        <div class="upload-placeholder">
+                            <img src="https://cdn-icons-png.flaticon.com/512/337/337946.png" alt="上传图标" width="64">
+                            <p>拖放PDF文件到此处或点击上传</p>
+                            <button type="button" id="uploadButton">选择文件</button>
+                        </div>
+                    </form>
+                </div>
+                <div id="uploadProgress" class="progress-bar" style="display: none;">
+                    <div class="progress"></div>
+                </div>
+                <div id="uploadStatus"></div>
+            </section>
+
+            <section class="documents-section">
+                <h2>已上传文档</h2>
+                <div id="documentsList" class="documents-list">
+                    <p class="empty-message">暂无上传的文档</p>
+                </div>
+            </section>
+
+            <section class="qa-section">
+                <h2>问答交互</h2>
+                <div class="chat-container">
+                    <div id="chatMessages" class="chat-messages">
+                        <div class="message system">
+                            <div class="message-content">
+                                <p>您好！请上传PDF文档，然后提出您的问题。</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input">
+                        <textarea id="questionInput" placeholder="输入您的问题..." rows="2"></textarea>
+                        <button id="askButton" disabled>发送</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>PDF文档问答系统 &copy; 2023</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
