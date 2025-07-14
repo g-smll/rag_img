@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>向量库数据浏览</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .vector-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .vector-table th, .vector-table td { border: 1px solid #e1e4e8; padding: 8px 10px; text-align: left; }
+        .vector-table th { background: #f5f7fa; }
+        .pagination { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; }
+        .pagination button { padding: 6px 12px; border: 1px solid #3498db; background: #fff; color: #3498db; border-radius: 4px; cursor: pointer; }
+        .pagination button.active, .pagination button:disabled { background: #3498db; color: #fff; cursor: default; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>向量库数据浏览</h1>
+            <a href="/" style="color:#3498db;">返回首页</a>
+        </header>
+        <main>
+            <div id="vectorTableContainer">
+                <table class="vector-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Text</th>
+                            <th>Metadata</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vectorTableBody">
+                        <tr><td colspan="3">加载中...</td></tr>
+                    </tbody>
+                </table>
+                <div class="pagination" id="pagination"></div>
+            </div>
+        </main>
+    </div>
+    <script>
+    const pageSize = 50;
+    let currentPage = 1;
+    let total = 0;
+
+    function fetchVectorData(page) {
+        fetch(`/vector_data?page=${page}&page_size=${pageSize}`)
+            .then(res => res.json())
+            .then(data => {
+                total = data.total;
+                renderTable(data.data);
+                renderPagination(data.page, Math.ceil(total / pageSize));
+            });
+    }
+
+    function renderTable(rows) {
+        const tbody = document.getElementById('vectorTableBody');
+        if (!rows || rows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3">暂无数据</td></tr>';
+            return;
+        }
+        tbody.innerHTML = rows.map(row => `
+            <tr>
+                <td>${row.id}</td>
+                <td style="max-width:400px;word-break:break-all;">${row.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td>
+                <td><pre style="white-space:pre-wrap;">${JSON.stringify(row.metadata, null, 2)}</pre></td>
+            </tr>
+        `).join('');
+    }
+
+    function renderPagination(current, totalPages) {
+        const pag = document.getElementById('pagination');
+        if (totalPages <= 1) { pag.innerHTML = ''; return; }
+        let html = '';
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button ${i===current?'class="active" disabled':''} onclick="gotoPage(${i})">${i}</button>`;
+        }
+        pag.innerHTML = html;
+    }
+
+    function gotoPage(page) {
+        currentPage = page;
+        fetchVectorData(page);
+    }
+
+    // 初始化
+    fetchVectorData(currentPage);
+    </script>
+</body>
+</html> 
