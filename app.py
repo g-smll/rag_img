@@ -1,9 +1,12 @@
+import time
+
 from flask import Flask, request, render_template, jsonify, session, send_from_directory
 import os
 import secrets
 from pdf_processor import PDFProcessor
 from vector_store import VectorStore
 from qa_model import QAModel
+from mcp_integration import MCPIntegration
 from config import UPLOAD_FOLDER, VECTOR_FOLDER
 import json
 
@@ -18,11 +21,46 @@ if not os.path.exists(UPLOAD_FOLDER):
 pdf_processor = PDFProcessor()
 vector_store = VectorStore()
 qa_model = QAModel(vector_store)
+mcp_integration = MCPIntegration(qa_model)
 
-@app.route('/')
+
+
+
+
+@app.route('/', methods=['GET'])
 def index():
-    """渲染主页"""
     return render_template('index.html')
+
+@app.route('/ask', methods=['POST'])
+def ask():
+    try:
+        # 优先从json获取，其次从form获取
+        if request.is_json:
+            data = request.get_json()
+            question = data.get('question') if data else None
+        else:
+            question = request.form.get('question')
+        
+        if not question:
+            return jsonify({
+                'success': False,
+                'error': '未检测到问题内容'
+            })
+        
+        # 使用智能问答：让DeepSeek决定是使用数据库工具还是知识问答
+        answer = mcp_integration.intelligent_answer(question)
+        
+        return jsonify({
+            'success': True,
+            'answer': answer,
+            'question': question
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'处理问题时出错: {str(e)}'
+        })
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -63,28 +101,6 @@ def upload_file():
             return jsonify({'error': f'处理文件时出错: {str(e)}'}), 500
     else:
         return jsonify({'error': '只允许上传PDF文件'}), 400
-
-@app.route('/ask', methods=['POST'])
-def ask_question():
-    """处理用户问题"""
-    data = request.json
-
-    if not data or 'question' not in data:
-        return jsonify({'error': '没有提供问题'}), 400
-
-    question = data['question']
-
-    try:
-        # 生成回答
-        answer = qa_model.generate_answer(question)
-
-        return jsonify({
-            'success': True,
-            'question': question,
-            'answer': answer
-        })
-    except Exception as e:
-        return jsonify({'error': f'生成回答时出错: {str(e)}'}), 500
 
 @app.route('/documents')
 def list_documents():

@@ -17,3 +17,6 @@ CHUNK_OVERLAP = 200  # 分段重叠大小（字符数）
 UPLOAD_FOLDER = "uploads"
 VECTOR_FOLDER = "vectors"
 IMAGE_FOLDER = "images"
+
+# MCP服务配置
+MCP_SERVICE_URL = "http://127.0.0.1:9090/messages/"
