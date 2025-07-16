@@ -50,17 +50,27 @@ def ask():
         # 使用智能问答：让DeepSeek决定是使用数据库工具还是知识问答
         answer = mcp_integration.intelligent_answer(question)
         
-        return jsonify({
-            'success': True,
-            'answer': answer,
-            'question': question
-        })
+        # 检查是否是AJAX请求（通过Content-Type判断）
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            # AJAX请求返回JSON
+            return jsonify({
+                'success': True,
+                'answer': answer,
+                'question': question
+            })
+        else:
+            # 表单提交返回HTML页面
+            return render_template('index.html', answer=answer, question=question)
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'处理问题时出错: {str(e)}'
-        })
+        # 检查是否是AJAX请求
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': False,
+                'error': f'处理问题时出错: {str(e)}'
+            })
+        else:
+            return render_template('index.html', error=str(e))
 
 @app.route('/upload', methods=['POST'])
 def upload_file():

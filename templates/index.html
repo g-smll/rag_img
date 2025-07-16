@@ -3,19 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF文档问答系统</title>
+    <title>智能问答系统</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .tab-container {
+            margin-bottom: 20px;
+        }
+        .tab-buttons {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            background-color: #f0f0f0;
+            border: none;
+            cursor: pointer;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab-button.active {
+            background-color: #3498db;
+            color: white;
+        }
+        .answer-container {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+        .error-message {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>PDF文档问答系统</h1>
-            <p>上传PDF文档并提问，AI将基于文档内容回答您的问题</p>
+            <h1>智能问答系统</h1>
+            <p>上传PDF文档并提问，或查询数据库信息</p>
             <a href="/view_vectors" style="color:#3498db;font-weight:bold;float:right;">查看向量库数据</a>
         </header>
 
         <main>
-            <section class="upload-section">
+            <div class="tab-container">
+                <div class="tab-buttons">
+                    <button class="tab-button active" data-tab="document">文档问答</button>
+                    <button class="tab-button" data-tab="database">数据库问答</button>
+                </div>
+            </div>
+
+            <section class="upload-section" id="documentSection">
                 <h2>上传文档</h2>
                 <div class="upload-area" id="dropArea">
                     <form id="uploadForm" enctype="multipart/form-data">
@@ -46,23 +85,62 @@
                     <div id="chatMessages" class="chat-messages">
                         <div class="message system">
                             <div class="message-content">
-                                <p>您好！请上传PDF文档，然后提出您的问题。</p>
+                                <p>您好！请上传PDF文档或直接提问数据库相关问题。</p>
                             </div>
                         </div>
                     </div>
                     <div class="chat-input">
                         <textarea id="questionInput" placeholder="输入您的问题..." rows="2"></textarea>
-                        <button id="askButton" disabled>发送</button>
+                        <button id="askButton">发送</button>
                     </div>
                 </div>
             </section>
+
+            {% if question and answer %}
+            <section class="answer-section">
+                <h2>问答结果</h2>
+                <div class="answer-container">
+                    <h3>问题：</h3>
+                    <p>{{ question }}</p>
+                    <h3>回答：</h3>
+                    <p>{{ answer }}</p>
+                </div>
+            </section>
+            {% endif %}
         </main>
 
         <footer>
-            <p>PDF文档问答系统 &copy; 2023</p>
+            <p>智能问答系统 &copy; 2023</p>
         </footer>
     </div>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tab切换功能
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const documentSection = document.getElementById('documentSection');
+            
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    const tabType = this.getAttribute('data-tab');
+                    if (tabType === 'document') {
+                        documentSection.style.display = 'block';
+                    } else if (tabType === 'database') {
+                        documentSection.style.display = 'none';
+                    }
+                });
+            });
+            
+            // 启用提问按钮（无需等待文档上传）
+            const askButton = document.getElementById('askButton');
+            if (askButton) {
+                askButton.disabled = false;
+            }
+        });
+    </script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
