@@ -45,10 +45,14 @@ def ask():
             return jsonify({
                 'success': False,
                 'error': '未检测到问题内容'
-            })
+            }), 400
         
         # 使用智能问答：让DeepSeek决定是使用数据库工具还是知识问答
         answer = mcp_integration.intelligent_answer(question)
+        
+        # 确保answer不为None
+        if answer is None:
+            answer = "抱歉，处理您的问题时出现了问题，请稍后重试。"
         
         # 检查是否是AJAX请求（通过Content-Type判断）
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -57,18 +61,19 @@ def ask():
                 'success': True,
                 'answer': answer,
                 'question': question
-            })
+            }), 200
         else:
             # 表单提交返回HTML页面
             return render_template('index.html', answer=answer, question=question)
         
     except Exception as e:
+        print(f"处理问题时出错: {str(e)}")  # 添加日志
         # 检查是否是AJAX请求
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({
                 'success': False,
                 'error': f'处理问题时出错: {str(e)}'
-            })
+            }), 500
         else:
             return render_template('index.html', error=str(e))
 
