@@ -652,21 +652,21 @@ class MCPIntegration:
                 {
                     "role": "system",
                     "content": """
-你是一个智能助手，可以处理两类问题：
-1. 数据库查询问题：使用数据库工具（execute_sql, get_table_name, get_table_desc, get_lock_tables）
-2. 知识问答问题：使用知识搜索工具（knowledge_search）
-
-数据库工具使用指南：
-- execute_sql: 当用户要查询具体数据内容时使用。
-- get_table_name: 仅当用户询问有哪些表或搜索表名时使用。
-- get_table_desc: 当用户询问表结构或字段信息时使用。
-- get_lock_tables: 当用户询问数据库锁信息时使用。
-
-知识问答工具使用指南：
-- knowledge_search: 当用户问题与数据库结构无关，而是需要查阅文档、解释概念、技术说明等时使用。
-
-请根据用户问题，自动选择最合适的工具，并合理生成参数。
-"""
+                            你是一个智能助手，可以处理两类问题：
+                            1. 数据库查询问题：使用数据库工具（execute_sql, get_table_name, get_table_desc, get_lock_tables）
+                            2. 知识问答问题：使用知识搜索工具（knowledge_search）
+                            
+                            数据库工具使用指南：
+                            - execute_sql: 当用户要查询具体数据内容时使用。
+                            - get_table_name: 仅当用户询问有哪些表或搜索表名时使用。
+                            - get_table_desc: 当用户询问表结构或字段信息时使用。
+                            - get_lock_tables: 当用户询问数据库锁信息时使用。
+                            
+                            知识问答工具使用指南：
+                            - knowledge_search: 当用户问题与数据库结构无关，而是需要查阅文档、解释概念、技术说明等时使用。
+                            
+                            请根据用户问题，自动选择最合适的工具，并合理生成参数。
+                            """
                 },
                 {
                     "role": "user",
