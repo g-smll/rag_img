@@ -2,6 +2,8 @@ import requests
 import json
 from typing import Dict, List, Any
 from config import API_TOKEN, CHAT_API_URL, MCP_SERVICE_URL
+import asyncio
+from langchain_mcp_adapters.client import MultiServerMCPClient
 
 
 class MCPIntegration:
@@ -9,70 +11,82 @@ class MCPIntegration:
     
     def __init__(self, qa_model=None):
         self.qa_model = qa_model
-        self.mcp_tools = [
-            {
-                "type": "function",
-                "function": {
-                    "name": "execute_sql",
-                    "description": "在MySQL8.0数据库上执行SQL查询语句",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "query": {
-                                "type": "string",
-                                "description": "要执行的SQL语句"
-                            }
-                        },
-                        "required": ["query"]
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_table_name",
-                    "description": "根据表的中文注释搜索数据库中对应的表名",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "text": {
-                                "type": "string",
-                                "description": "要搜索的表中文名或关键词"
-                            }
-                        },
-                        "required": ["text"]
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_table_desc",
-                    "description": "获取指定表的字段结构信息，支持多表查询",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "text": {
-                                "type": "string",
-                                "description": "要查询的表名，多个表名以逗号分隔"
-                            }
-                        },
-                        "required": ["text"]
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_lock_tables",
-                    "description": "获取当前MySQL服务器InnoDB的行级锁信息",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {}
-                    }
-                }
+        # 原hardcode方式，已废弃：
+        # self.mcp_tools = [
+        #     {
+        #         "type": "function",
+        #         "function": {
+        #             "name": "execute_sql",
+        #             "description": "在MySQL8.0数据库上执行SQL查询语句",
+        #             "parameters": {
+        #                 "type": "object",
+        #                 "properties": {
+        #                     "query": {
+        #                         "type": "string",
+        #                         "description": "要执行的SQL语句"
+        #                     }
+        #                 },
+        #                 "required": ["query"]
+        #             }
+        #         }
+        #     },
+        #     {
+        #         "type": "function",
+        #         "function": {
+        #             "name": "get_table_name",
+        #             "description": "根据表的中文注释搜索数据库中对应的表名",
+        #             "parameters": {
+        #                 "type": "object",
+        #                 "properties": {
+        #                     "text": {
+        #                         "type": "string",
+        #                         "description": "要搜索的表中文名或关键词"
+        #                     }
+        #                 },
+        #                 "required": ["text"]
+        #             }
+        #         }
+        #     },
+        #     {
+        #         "type": "function",
+        #         "function": {
+        #             "name": "get_table_desc",
+        #             "description": "获取指定表的字段结构信息，支持多表查询",
+        #             "parameters": {
+        #                 "type": "object",
+        #                 "properties": {
+        #                     "text": {
+        #                         "type": "string",
+        #                         "description": "要查询的表名，多个表名以逗号分隔"
+        #                     }
+        #                 },
+        #                 "required": ["text"]
+        #             }
+        #         }
+        #     },
+        #     {
+        #         "type": "function",
+        #         "function": {
+        #             "name": "get_lock_tables",
+        #             "description": "获取当前MySQL服务器InnoDB的行级锁信息",
+        #             "parameters": {
+        #                 "type": "object",
+        #                 "properties": {}
+        #             }
+        #         }
+        #     }
+        # ]
+        self.mcp_tools = []
+        asyncio.run(self.load_mcp_tools())
+
+    async def load_mcp_tools(self):
+        client = MultiServerMCPClient({
+            "math-sse": {
+                "url": "http://localhost:9090/sse/",
+                "transport": "sse"
             }
-        ]
+        })
+        self.mcp_tools = await client.get_tools()
     
     def call_deepseek_with_tools(self, question: str) -> str:
         """调用DeepSeek API，让其决定使用哪个MCP工具"""
@@ -596,29 +610,25 @@ class MCPIntegration:
         except Exception as e:
             return mcp_result  # 如果格式化失败，返回原始结果    
 
+    def tool_to_dict(self, tool):
+        """将StructuredTool对象转换为dict结构"""
+        return {
+            "type": "function",
+            "function": {
+                "name": tool.name,
+                "description": tool.description,
+                "parameters": tool.args_schema
+            }
+        }
+
     def intelligent_answer(self, question: str) -> str:
-        """智能回答：让DeepSeek决定是使用数据库工具还是知识问答"""
+        """智能回答：完全由大模型决定使用数据库工具还是知识问答，不做本地硬编码判断"""
         try:
-            print(f"开始处理问题: {question}")  # 添加调试日志
-            
-            # 预处理：检测用户是否想要查询数据内容
-            question_lower = question.lower()
-            
-            # 如果用户明确要求查询数据内容，直接使用execute_sql
-            print(f"检查预处理条件: 学生={('学生' in question)}, 数据={('数据' in question)}, 所有={('所有' in question)}")
-            
-            if "学生" in question and ("数据" in question or "所有" in question or "全部" in question):
-                print("检测到用户想要查询学生表数据，直接使用execute_sql工具")
-                mcp_result = self.call_mcp_tool("execute_sql", {"query": "SELECT * FROM students"})
-                return self.format_final_answer(question, "execute_sql", {"query": "SELECT * FROM students"}, mcp_result)
-            elif "用户" in question and ("数据" in question or "所有" in question or "全部" in question):
-                print("检测到用户想要查询用户表数据，直接使用execute_sql工具")
-                mcp_result = self.call_mcp_tool("execute_sql", {"query": "SELECT * FROM users"})
-                return self.format_final_answer(question, "execute_sql", {"query": "SELECT * FROM users"}, mcp_result)
-            
-            print("预处理条件不匹配，继续使用DeepSeek工具选择")
-            # 添加RAG工具到工具列表
-            all_tools = self.mcp_tools.copy()
+            print(f"开始处理问题: {question}")  # 调试日志
+
+            # 将所有StructuredTool对象转为dict
+            all_tools = [self.tool_to_dict(t) for t in self.mcp_tools]
+            # 添加RAG知识搜索工具
             all_tools.append({
                 "type": "function",
                 "function": {
@@ -636,39 +646,34 @@ class MCPIntegration:
                     }
                 }
             })
-            
+
+            # 系统提示词，指导大模型如何选择工具
             messages = [
                 {
                     "role": "system",
-                    "content": """你是一个智能助手，可以处理两类问题：
+                    "content": """
+你是一个智能助手，可以处理两类问题：
 1. 数据库查询问题：使用数据库工具（execute_sql, get_table_name, get_table_desc, get_lock_tables）
 2. 知识问答问题：使用知识搜索工具（knowledge_search）
 
 数据库工具使用指南：
-- execute_sql: 当用户要查询具体数据内容时使用。关键词包括："查询...数据"、"显示...信息"、"查看...内容"、"所有数据"、"全部数据"等。
-- get_table_name: 仅当用户询问有哪些表或搜索表名时使用，如"有哪些学生相关的表"、"数据库中有什么表"
-- get_table_desc: 当用户询问表结构或字段信息时使用，如"students表有哪些字段"、"表结构是什么"
-- get_lock_tables: 当用户询问数据库锁信息时使用
+- execute_sql: 当用户要查询具体数据内容时使用。
+- get_table_name: 仅当用户询问有哪些表或搜索表名时使用。
+- get_table_desc: 当用户询问表结构或字段信息时使用。
+- get_lock_tables: 当用户询问数据库锁信息时使用。
 
-关键判断规则：
-1. 如果用户问题包含"查询...数据"、"显示...信息"、"查看...内容"、"所有数据"、"全部数据"等词汇，必须使用execute_sql工具
-2. 例如："查询学生表的所有数据" → 使用execute_sql，参数：{"query": "SELECT * FROM students"}
-3. 例如："显示用户信息" → 使用execute_sql，参数：{"query": "SELECT * FROM users"}
-4. 例如："查询students表全部数据" → 使用execute_sql，参数：{"query": "SELECT * FROM students"}
-5. 重要：当用户明确要求查询数据内容时，直接使用execute_sql工具，不要使用get_table_name工具
+知识问答工具使用指南：
+- knowledge_search: 当用户问题与数据库结构无关，而是需要查阅文档、解释概念、技术说明等时使用。
 
-特别注意：
-- "查询学生表的所有数据" = 用户想看学生表中的实际数据记录，使用execute_sql
-- "有哪些学生相关的表" = 用户想知道表名，使用get_table_name
-
-CRITICAL: 当用户说"查询学生表的所有数据"时，他们想要看到学生表中的实际数据记录，不是表名！必须使用execute_sql工具！"""
+请根据用户问题，自动选择最合适的工具，并合理生成参数。
+"""
                 },
                 {
                     "role": "user",
                     "content": question
                 }
             ]
-            
+
             payload = {
                 "model": "Pro/deepseek-ai/DeepSeek-V3",
                 "messages": messages,
@@ -677,24 +682,24 @@ CRITICAL: 当用户说"查询学生表的所有数据"时，他们想要看到�
                 "max_tokens": 1024,
                 "temperature": 0.1
             }
-            
+
             headers = {
                 "Authorization": f"Bearer {API_TOKEN}",
                 "Content-Type": "application/json"
             }
-            
+
             response = requests.post(CHAT_API_URL, headers=headers, json=payload, timeout=30)
-            
+
             if response.status_code == 200:
                 result = response.json()
                 message = result["choices"][0]["message"]
-                
+
                 # 检查是否有工具调用
                 if "tool_calls" in message and message["tool_calls"]:
                     tool_call = message["tool_calls"][0]
                     function_name = tool_call["function"]["name"]
                     function_args = json.loads(tool_call["function"]["arguments"])
-                    
+
                     # 根据工具类型调用不同的服务
                     if function_name == "knowledge_search":
                         # 调用RAG知识问答
@@ -712,7 +717,7 @@ CRITICAL: 当用户说"查询学生表的所有数据"时，他们想要看到�
                     return message.get("content", "抱歉，我无法理解您的问题。")
             else:
                 return f"智能助手调用失败，状态码: {response.status_code}"
-                
+
         except Exception as e:
             return f"智能问答时出错: {str(e)}"
     
